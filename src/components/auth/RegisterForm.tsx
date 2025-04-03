@@ -8,7 +8,8 @@ const registerSchema = z.object({
   email: z.string()
     .email('Please enter a valid email address'),
   password: z.string(),
-  confirmPassword: z.string()
+  confirmPassword: z.string(),
+  name: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -52,8 +53,12 @@ const registerSchema = z.object({
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export default function RegisterForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+interface RegisterFormProps {
+  onSubmit: (data: { email: string; password: string; name?: string }) => Promise<void>;
+  isLoading?: boolean;
+}
+
+export default function RegisterForm({ onSubmit, isLoading = false }: RegisterFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -66,33 +71,16 @@ export default function RegisterForm() {
     criteriaMode: 'all',
   });
 
-  const onSubmit = async (data: RegisterFormData) => {
+  const handleFormSubmit = async (data: RegisterFormData) => {
     try {
-      setIsSubmitting(true);
       setError(null);
-      
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
+      await onSubmit({
+        email: data.email,
+        password: data.password,
+        name: data.name,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Something went wrong');
-      }
-
-      // Redirect to login page or show success message
-      window.location.assign('/auth/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -106,7 +94,7 @@ export default function RegisterForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" role="form">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" role="form">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
             Email
@@ -119,6 +107,21 @@ export default function RegisterForm() {
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            Name (optional)
+          </label>
+          <input
+            {...register('name')}
+            type="text"
+            id="name"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          />
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
           )}
         </div>
 
@@ -162,10 +165,10 @@ export default function RegisterForm() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isLoading}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
         >
-          {isSubmitting ? 'Registering...' : 'Register'}
+          {isLoading ? 'Registering...' : 'Register'}
         </button>
       </form>
     </div>

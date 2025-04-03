@@ -3,156 +3,131 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RegisterForm from '../RegisterForm';
 
+// Mock the onSubmit function
+const mockOnSubmit = jest.fn();
+
 describe('RegisterForm', () => {
   beforeEach(() => {
-    // Reset fetch mock before each test
-    global.fetch = jest.fn();
+    jest.clearAllMocks();
   });
 
-  it('renders all form fields and submit button', () => {
-    render(<RegisterForm />);
+  it('renders the form with all fields', () => {
+    render(<RegisterForm onSubmit={mockOnSubmit} />);
     
+    // Check if all form fields are rendered
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /register/i })).toBeInTheDocument();
   });
 
-  it('shows validation errors for empty fields', async () => {
-    render(<RegisterForm />);
+  it('shows validation errors for invalid inputs', async () => {
+    render(<RegisterForm onSubmit={mockOnSubmit} />);
     
-    const form = screen.getByRole('form');
-    fireEvent.submit(form);
-
+    // Submit the form without filling any fields
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    
+    // Check for validation errors
     await waitFor(() => {
       expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument();
       expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
     });
-  });
-
-  it('validates email format', async () => {
-    render(<RegisterForm />);
     
-    const emailInput = screen.getByLabelText(/email/i);
-    await userEvent.type(emailInput, 'invalid-email');
-    await userEvent.tab(); // Trigger blur event
-    
-    // Trigger form validation
-    const form = screen.getByRole('form');
-    fireEvent.submit(form);
-
-    await waitFor(() => {
-      expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument();
-    });
+    // The onSubmit function should not be called
+    expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
   it('validates password requirements', async () => {
-    render(<RegisterForm />);
+    render(<RegisterForm onSubmit={mockOnSubmit} />);
     
-    const passwordInput = screen.getByLabelText(/^password$/i);
-    await userEvent.type(passwordInput, 'weak');
-    await userEvent.tab();
+    // Fill in the form with a weak password
+    await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'weak');
+    await userEvent.type(screen.getByLabelText(/confirm password/i), 'weak');
     
-    // Use click instead of submit
-    const submitButton = screen.getByRole('button', { name: /register/i });
-    fireEvent.click(submitButton);
-
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    
+    // Check for password validation errors
     await waitFor(() => {
       expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
       expect(screen.getByText(/password must contain at least one uppercase letter/i)).toBeInTheDocument();
       expect(screen.getByText(/password must contain at least one number/i)).toBeInTheDocument();
       expect(screen.getByText(/password must contain at least one special character/i)).toBeInTheDocument();
     });
+    
+    // The onSubmit function should not be called
+    expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('validates password confirmation match', async () => {
-    render(<RegisterForm />);
+  it('validates that passwords match', async () => {
+    render(<RegisterForm onSubmit={mockOnSubmit} />);
     
-    const passwordInput = screen.getByLabelText(/^password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
+    // Fill in the form with mismatched passwords
+    await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'Password123!');
+    await userEvent.type(screen.getByLabelText(/confirm password/i), 'Password123!!');
     
-    await userEvent.type(passwordInput, 'StrongP@ss123');
-    await userEvent.type(confirmPasswordInput, 'DifferentP@ss123');
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
     
-    const submitButton = screen.getByRole('button', { name: /register/i });
-    fireEvent.click(submitButton);
-
+    // Check for password match validation error
     await waitFor(() => {
       expect(screen.getByText(/passwords don't match/i)).toBeInTheDocument();
     });
+    
+    // The onSubmit function should not be called
+    expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('handles successful form submission', async () => {
-    const mockFetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ message: 'Registration successful' })
-    });
-    global.fetch = mockFetch;
+  it('calls onSubmit with form data when validation passes', async () => {
+    render(<RegisterForm onSubmit={mockOnSubmit} />);
     
-    // Mock window.location properly
-    const mockAssign = jest.fn();
-    const mockLocation = {
-      assign: mockAssign,
-    } as unknown as Location;
+    // Fill in the form with valid data
+    await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+    await userEvent.type(screen.getByLabelText(/name/i), 'Test User');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'Password123!');
+    await userEvent.type(screen.getByLabelText(/confirm password/i), 'Password123!');
     
-    Object.defineProperty(window, 'location', {
-      value: mockLocation,
-      writable: true,
-    });
-
-    render(<RegisterForm />);
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
     
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/^password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
-    
-    await userEvent.type(emailInput, 'test@example.com');
-    await userEvent.type(passwordInput, 'StrongP@ss123');
-    await userEvent.type(confirmPasswordInput, 'StrongP@ss123');
-    
-    const form = screen.getByRole('form');
-    fireEvent.submit(form);
-
+    // Check if onSubmit was called with the correct data
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: 'test@example.com',
-          password: 'StrongP@ss123',
-        }),
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'Password123!',
+        name: 'Test User',
       });
-      expect(mockAssign).toHaveBeenCalledWith('/auth/login');
     });
   });
 
-  it('handles server error during submission', async () => {
-    const errorMessage = 'Email already exists';
-    const mockFetch = jest.fn().mockImplementation(() => 
-      Promise.resolve({
-        ok: false,
-        json: () => Promise.resolve({ message: errorMessage })
-      })
-    );
-    global.fetch = mockFetch;
-
-    render(<RegisterForm />);
+  it('displays error message when onSubmit throws an error', async () => {
+    // Mock onSubmit to throw an error
+    const errorMessage = 'Registration failed';
+    mockOnSubmit.mockRejectedValueOnce(new Error(errorMessage));
     
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/^password$/i);
-    const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
+    render(<RegisterForm onSubmit={mockOnSubmit} />);
     
-    await userEvent.type(emailInput, 'test@example.com');
-    await userEvent.type(passwordInput, 'StrongP@ss123');
-    await userEvent.type(confirmPasswordInput, 'StrongP@ss123');
+    // Fill in the form with valid data
+    await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'Password123!');
+    await userEvent.type(screen.getByLabelText(/confirm password/i), 'Password123!');
     
-    const submitButton = screen.getByRole('button', { name: /register/i });
-    fireEvent.click(submitButton);
-
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    
+    // Check if the error message is displayed
     await waitFor(() => {
       expect(screen.getByText(errorMessage)).toBeInTheDocument();
     });
+  });
+
+  it('disables the submit button when isLoading is true', () => {
+    render(<RegisterForm onSubmit={mockOnSubmit} isLoading={true} />);
+    
+    // Check if the submit button is disabled
+    expect(screen.getByRole('button', { name: /registering/i })).toBeDisabled();
   });
 }); 
