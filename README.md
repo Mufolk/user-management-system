@@ -51,7 +51,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
    - Create user in database ✅
    - Add comprehensive tests ✅
 
-3. Add registration page: ✅ (completed in commit 0a9ec84)
+3. Add registration page: ✅ (completed in commit 0b0fec5)
    - Create `src/app/auth/register/page.tsx` ✅
    - Implement error handling ✅
    - Add success redirect ✅
