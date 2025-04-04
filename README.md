@@ -336,3 +336,56 @@ npm install @uploadthing/react uploadthing sharp
    - Implement error tracking
    - Create health checks
    - Set up alerts
+
+## Developer Documentation
+
+### API Documentation
+
+The API documentation is available in development mode at:
+```
+http://localhost:3000/dev/api-docs
+```
+
+This documentation is only accessible:
+- In development environment (NODE_ENV !== 'production')
+- From localhost
+- By developers with local access
+
+To view the documentation:
+
+1. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+2. Navigate to http://localhost:3000/dev/api-docs in your browser
+
+Note: This documentation is not available in production environments.
+
+### Adding New Endpoints
+
+When adding new endpoints, update the OpenAPI specification in `src/lib/openapi.ts`:
+
+1. Add the endpoint path
+2. Document request/response schemas
+3. Include example requests and responses
+4. Document possible error responses
+
+Example:
+```typescript
+paths: {
+  '/api/your-new-endpoint': {
+    post: {
+      summary: 'Endpoint description',
+      tags: ['Category'],
+      requestBody: {
+        // ... request schema
+      },
+      responses: {
+        // ... response schemas
+      }
+    }
+  }
+}
+```
+
